@@ -1,40 +1,43 @@
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { gql, useQuery } from '@apollo/client';
+import { useEffect, useState } from 'react';
 import FlightList from '../components/FlightList';
 import NoResults from '../components/NoResults';
 import Button from '@mui/material/Button';
-
 
 export default function Results() {
   const [searchParams] = useSearchParams();
   const from = searchParams.get('from');
   const to = searchParams.get('to');
   const navigate = useNavigate();
+  const [flights, setFlights] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  const api = import.meta.env.VITE_API_URL;
 
-  const GET_FLIGHTS = gql`
-  query GetFlights($from: String, $to: String) {
-    flights(from: $from, to: $to) {
-      id
-      from
-      to
-      price
-      airline
-      departureTime
-    }
-  }
-`;
-console.log(from,to);
-  if (!from || !to) {
-    return <p>Waiting for search parameters...</p>;
-  }
-  const { loading, error, data } = useQuery(GET_FLIGHTS, {
-    variables: { from, to },
-  });
+  useEffect(() => {
+    if (!from || !to) return;
+
+    const fetchFlights = async () => {
+      try {
+        const res = await fetch(`${api}/flights?from=${from}&to=${to}`);
+        if (!res.ok) throw new Error('Failed to fetch flights');
+        const data = await res.json();
+        setFlights(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFlights();
+  }, [from, to]);
+
+  if (!from || !to) return <p>Waiting for search parameters...</p>;
   if (loading) return <p>Loading flights...</p>;
-  if (error) return console.log(error);
+  if (error) return <p>Error: {error}</p>;
 
-  const flights = data?.flights || [];
   if (flights.length === 0) {
     return (
       <div>
